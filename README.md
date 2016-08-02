@@ -4,7 +4,7 @@ This repository demonstrates the principles behind the talk “High-Availability
 Django” given by Frankie Dintino of _The Atlantic_ at the 2016 Djangocon.
 
 In order to simulate the deployment of a large-ish Django project, it uses the
-source for [addons.mozilla.org](https://addons.mozilla.org/) [found
+source for [addons.mozilla.org](https://addons.mozilla.org/), [found
 here](https://github.com/mozilla/addons-server).
 
 ## Running
@@ -27,14 +27,16 @@ During the `fab init` step you will be prompted once when the database is initia
 and then again to create the superuser.
 
 Using `docker-machine` is not required unless you are using the older Docker Toolbox
-on Mac. Keep in mind however that by default, running `docker-compose up` without
-using a docker-machine VM will bind to port 80 on your localhost, so it will need to be free.
+on Mac (or you have installed it with `brew install docker`). Keep in mind however
+that by default, running `docker-compose up` without using a docker-machine VM will
+bind to port 80 on your localhost, so it will need to be unused, so you may wish
+to use `docker-machine` even if you don't need to.
 Alternatively, if you are using Docker for Mac, you can use
 [https://github.com/nlf/dlite](https://github.com/nlf/dlite) to have docker use a
 separate bridged network (and thus separate ips for its containers).
 
 Grap the ip address using the command `fab ip` (unless you are not using `docker-machine`
-or `dlite`, in which case it will be `127.0.0.1`, and then add to your `/etc/hosts` files:
+or `dlite`, in which case it will be `127.0.0.1`), and then add to your `/etc/hosts` files:
 
 ```
 192.168.64.7  live.addons stage.addons
