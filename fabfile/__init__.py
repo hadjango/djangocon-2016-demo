@@ -221,11 +221,26 @@ def swap_live(name=None):
 
 
 @task
+def stage(name):
+    live = dealias_build("_live")
+    stage = dealias_build("_stage")
+    if name == live:
+        abort("Cannot stage the live build; use 'fab swap_live' instead")
+    if name == stage:
+        abort("Build %s is already staged" % name)
+    if not os.path.islink("%s/deploy/builds/%s/zerg.ini" % (ROOT_DIR, name)):
+        activate(name)
+        time.sleep(10)
+        warmup(name)
+    with cd("/code/deploy/builds"):
+        docker_exec("ln -snvf %s _stage" % name)
+
+
+@task
 def activate(name):
     """Start a uWSGI instance for the given build"""
     with build_venv(name):
         # Wait for the emperor to poll again
-        time.sleep(3)
         docker_exec("ln -svfn /code/conf/uwsgi/zerg.skel zerg.ini")
         time.sleep(3)
 
