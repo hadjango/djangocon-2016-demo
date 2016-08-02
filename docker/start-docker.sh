@@ -41,4 +41,4 @@ mkdir -p /var/run/supervisor
 chown $uid:$gid /var/run/supervisor
 
 # Switch to that user and execute our actual command.
-exec su olympia -c 'exec "$@"' sh -- "$@"
+exec su root -c 'exec "$@"' sh -- "$@"
