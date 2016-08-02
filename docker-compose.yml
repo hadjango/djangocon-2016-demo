@@ -1,0 +1,77 @@
+version: '2'
+
+services:
+  web:
+    # build: .
+    image: hadjango/djangocon-2016-demo
+    entrypoint: ./docker/start-docker.sh
+    command: supervisord -n -c /code/docker/supervisor.conf
+    expose:
+      - "1999"
+      - "2000"
+      - "2010"
+      - "2020"
+      - "2030"
+      - "2040"
+      - "2050"
+      - "2060"
+      - "2070"
+      - "2080"
+      - "2090"
+      - "2100"
+      - "2110"
+      - "2120"
+      - "2130"
+      - "2140"
+      - "2150"
+      - "2160"
+      - "2170"
+      - "2180"
+      - "2190"
+      - "2200"
+      - "2210"
+      - "2220"
+      - "2230"
+      - "2240"
+      - "2250"
+      - "9999"
+    volumes:
+      - .:/code
+    links:
+      - memcached
+      - mysqld
+      - elasticsearch
+      - redis
+    environment:
+      - PYTHONUNBUFFERED=1
+      - RECURSION_LIMIT=10000
+      - TERM=xterm-256color
+
+  nginx:
+    # build: ./nginx
+    image: hadjango/addons-nginx
+    entrypoint: /code/docker/start-nginx.sh
+    command: nginx -g 'daemon off;'
+    ports:
+      - "80"
+    ports:
+      - "80:80"
+    volumes:
+      - .:/code
+    links:
+      - web:web
+
+  memcached:
+    image: memcached:1.4
+
+  mysqld:
+    image: mysql:5.6
+    environment:
+      - MYSQL_ALLOW_EMPTY_PASSWORD=yes
+      - MYSQL_DATABASE=olympia
+
+  elasticsearch:
+    image: elasticsearch:1.6
+
+  redis:
+    image: redis:2.8

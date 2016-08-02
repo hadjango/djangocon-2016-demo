@@ -1,0 +1,49 @@
+[uwsgi]
+plugins = cheaper_busyness,logfile,python
+
+; a, b, etc...
+; (this is based on the name of the current symlink's directory)
+build = %c
+
+log-x-forwarded-for = true
+log-format = [%(worker_id)] %(addr) [%(ltime)] "%(method) %(uri) %(proto)" %(status) %(size) "%(referer)" "%(uagent)" %(micros)
+
+master = true
+memory-report = true
+thunder-lock = true
+
+; Initialize adaptive process spawning (aka the cheaper subsystem)
+; maximum number of workers that can be spawned
+workers = 14
+; Use the 'busyness' algorithm
+cheaper-algo = busyness
+; tries to keep 4 idle workers
+cheaper = 4
+; starts with minimal workers
+cheaper-initial = 3
+; spawn at most 1 worker at a time
+cheaper-step = 1
+; how many seconds between busyness checks
+cheaper-overload = 20
+cheaper-busyness-multiplier = 5
+; how many requests are in backlog before quick response triggered
+cheaper-busyness-backlog-alert = 33
+cheaper-busyness-backlog-step = 1
+
+auto-procname = true
+procname-master =  uwsgi master <%(build)>
+wsgi-file = /code/deploy/builds/%(build)/hadjango/uwsgi/wsgi.py
+python-path = /code/deploy/builds/%(build)
+home = /code/deploy/builds/%(build)
+buffer-size = 32768
+env = PYTHON_EGG_CACHE=/tmp/.%(build)-python-eggs
+env = DJANGO_SETTINGS_MODULE=settings
+req-logger = file:/code/deploy/logs/access.%(build).log
+logger = file:/code/deploy/logs/error.%(build).log
+stats = /code/deploy/run/%(build).stats
+
+lazy-apps = true
+touch-workers-reload = /code/deploy/builds/%(build)/hadjango/uwsgi/wsgi.py
+
+; attach to zerg pool
+zerg = /code/deploy/run/%(build).sock

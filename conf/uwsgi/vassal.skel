@@ -1,0 +1,15 @@
+[uwsgi]
+plugins = logfile,http,python
+build = %c
+port = @(exec:///code/fabfile/build_port_convert.py %c)
+
+thunder-lock = true
+master = true
+stats = /code/deploy/run/%(build)-vassal.stats
+processes = 0
+http = :%(port)
+zerg-server = /code/deploy/run/%(build).sock
+logto = /code/deploy/logs/vassal.%(build).log
+
+; Kill request after 15 seconds
+http-timeout = 15

@@ -1,0 +1,13 @@
+logs/*
+.bash_history
+.lesshst
+.npmrc
+.cache
+deps/
+*.pid
+.ipython
+assets/
+deploy/
+docker/artifacts
+*.pyc
+.npm

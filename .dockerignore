@@ -1,0 +1,11 @@
+.git
+.npm
+deploy
+node_modules
+.bash_history
+.lesshst
+.npmrc
+.cache
+.ipython
+docker/artifacts
+*.pyc

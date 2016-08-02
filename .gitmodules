@@ -1,0 +1,9 @@
+[submodule "addons-server"]
+	path = addons-server
+	url = https://github.com/hadjango/addons-server.git
+[submodule "src/uwsgi-dashboard"]
+	path = src/uwsgi-dashboard
+	url = https://github.com/hadjango/uwsgi-dashboard.git
+[submodule "nginx"]
+	path = nginx
+	url = https://github.com/hadjango/addons-nginx.git

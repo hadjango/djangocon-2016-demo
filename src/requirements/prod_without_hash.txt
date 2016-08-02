@@ -1,0 +1,6 @@
+# Pinned versions, equivalent to their editable git installs in
+# addons-server/requirements/prod_without_hash.txt, to allow wheel install with
+# --no-index
+jingo-minify==0.6.0
+django-cache-machine==0.9.1
+django-mobility==0.1
