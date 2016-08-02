@@ -6,6 +6,7 @@ services:
     image: hadjango/djangocon-2016-demo
     entrypoint: ./docker/start-docker.sh
     command: supervisord -n -c /code/docker/supervisor.conf
+    privileged: true
     expose:
       - "1999"
       - "2000"

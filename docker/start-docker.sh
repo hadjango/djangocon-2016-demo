@@ -39,6 +39,7 @@ fi
 
 mkdir -p /var/run/supervisor
 chown $uid:$gid /var/run/supervisor
+chown $uid:$gid /var/run/uwsgi
 
 # Switch to that user and execute our actual command.
 exec su root -c 'exec "$@"' sh -- "$@"

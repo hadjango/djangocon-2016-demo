@@ -1,5 +1,9 @@
 [uwsgi]
 plugins = cheaper_busyness,logfile,python
+uid = olympia
+gid = olympia
+chmod-socket = 666
+chown-socket = olympia:olympia
 
 ; a, b, etc...
 ; (this is based on the name of the current symlink's directory)
@@ -20,7 +24,7 @@ cheaper-algo = busyness
 ; tries to keep 4 idle workers
 cheaper = 4
 ; starts with minimal workers
-cheaper-initial = 3
+cheaper-initial = 4
 ; spawn at most 1 worker at a time
 cheaper-step = 1
 ; how many seconds between busyness checks
@@ -40,10 +44,10 @@ env = PYTHON_EGG_CACHE=/tmp/.%(build)-python-eggs
 env = DJANGO_SETTINGS_MODULE=settings
 req-logger = file:/code/deploy/logs/access.%(build).log
 logger = file:/code/deploy/logs/error.%(build).log
-stats = /code/deploy/run/%(build).stats
+stats = /var/run/uwsgi/%(build).stats
 
 lazy-apps = true
 touch-workers-reload = /code/deploy/builds/%(build)/hadjango/uwsgi/wsgi.py
 
 ; attach to zerg pool
-zerg = /code/deploy/run/%(build).sock
+zerg = /var/run/uwsgi/%(build).sock

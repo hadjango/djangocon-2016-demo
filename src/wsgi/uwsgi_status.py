@@ -57,7 +57,7 @@ def get_uwsgi_procs():
                 if re_procname.match(pinfo['cmdline'][0]):
                     procs[pinfo['pid']] = UwsgiProcess(pinfo)
 
-    stat_sock_files = glob.glob('/code/deploy/run/*.stats')
+    stat_sock_files = glob.glob('/var/run/uwsgi/*.stats')
     for stat_sock_file in stat_sock_files:
         js = ''
         try:

@@ -2,13 +2,17 @@
 plugins = logfile,http,python
 build = %c
 port = @(exec:///code/fabfile/build_port_convert.py %c)
+uid = olympia
+gid = olympia
+chmod-socket = 666
+chown-socket = olympia:olympia
 
 thunder-lock = true
 master = true
-stats = /code/deploy/run/%(build)-vassal.stats
+stats = /var/run/uwsgi/%(build)-vassal.stats
 processes = 0
 http = :%(port)
-zerg-server = /code/deploy/run/%(build).sock
+zerg-server = /var/run/uwsgi/%(build).sock
 logto = /code/deploy/logs/vassal.%(build).log
 
 ; Kill request after 15 seconds
