@@ -35,7 +35,7 @@ Alternatively, if you are using Docker for Mac, you can use
 [https://github.com/nlf/dlite](https://github.com/nlf/dlite) to have docker use a
 separate bridged network (and thus separate ips for its containers).
 
-Grap the ip address using the command `fab ip` (unless you are not using `docker-machine`
+Grab the ip address using the command `fab ip` (unless you are not using `docker-machine`
 or `dlite`, in which case it will be `127.0.0.1`), and then add to your `/etc/hosts` files:
 
 ```
