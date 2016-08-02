@@ -20,7 +20,7 @@ class Command(BaseCommand):
         parser.add_argument('--build', '-b', dest='build',
             default=settings.BUILD_NAME, help='Build to warm up: (a|b|c|...)')
         parser.add_argument('--concurrents', '-c', dest='concurrents',
-            default='20', help='Number of concurrent requests to make')
+            default='6', help='Number of concurrent requests to make')
 
     def handle(self, **options):
         server = "web"
