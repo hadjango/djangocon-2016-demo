@@ -29,8 +29,8 @@ and then again to create the superuser.
 Using `docker-machine` is not required unless you are using the older Docker Toolbox
 on Mac (or you have installed it with `brew install docker`). Keep in mind however
 that by default, running `docker-compose up` without using a docker-machine VM will
-bind to port 80 on your localhost, so it will need to be unused, so you may wish
-to use `docker-machine` even if you don't need to.
+bind to port 80 on your localhost, which means it will need to be unused, so
+you may wish to use `docker-machine` even if you don't need to.
 Alternatively, if you are using Docker for Mac, you can use
 [https://github.com/nlf/dlite](https://github.com/nlf/dlite) to have docker use a
 separate bridged network (and thus separate ips for its containers).
