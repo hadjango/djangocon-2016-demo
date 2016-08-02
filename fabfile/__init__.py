@@ -248,7 +248,7 @@ def ip():
     docker_host = os.environ.get("DOCKER_HOST") or ""
     if not docker_host:
         with quiet():
-            docker_env = local("docker-machine env addons-dev", capture=True)
+            docker_env = local("docker-machine env addons", capture=True)
         if docker_env:
             match = re.search(r'DOCKER_HOST="(tcp://[^"]+?)"', docker_env)
             if match:
