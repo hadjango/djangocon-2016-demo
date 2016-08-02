@@ -29,6 +29,23 @@ env.docker_shell_env = {
 
 
 @task
+def init():
+    """to initialize a docker image"""
+    build_wheels()
+    docker_exec("mkdir -p /code/deploy/assets/{static,media}")
+    create_build("a")
+    create_build("b")
+    docker_exec(
+        "ln -sfvn a /code/deploy/builds/_live",
+        "ln -sfvn b /code/deploy/builds/_stage")
+    initialize_db()
+    populate_data()
+    activate("a")
+    activate("b")
+    nginx_reload()
+
+
+@task
 def build_wheels():
     """Build the wheels for all dependencies"""
     tmp_dir = docker_exec("mktemp -d", capture=True)
@@ -45,7 +62,84 @@ def build_wheels():
              " <(perl -pe 's/^\-e //g;' prod_without_hash.txt)"))
 
 
-def install_python_dependencies(name):
+@task
+def create_build(name):
+    """Creates a new build of the Mozilla addons-server"""
+    symlink_static_dirs(name)
+    copy_src(name)
+    git_init(name)
+    with build_venv(name):
+        npm_install(name)
+        pip_install(name)
+        build_assets(name)
+        port = build_to_port(name)
+        docker_exec(
+            'echo "upstream web { server web:%d; }" > live.conf' % port,
+            'echo "upstream webstage { server web:%d; }" > stage.conf' % port,
+            'date +%FT%T > .DEPLOY_TAG')
+        docker_exec("ln -svfn /code/conf/uwsgi/vassal.skel vassal.ini")
+
+
+def symlink_static_dirs(name):
+    """
+    Creates symlinks for the static and media directories of build ``name`` so
+    that nginx static serving works correctly.
+
+    The directory './deploy/assets/static/%(name)s' will be created, along with
+    the following symlink
+
+        - ./deploy/builds/%(name)s/assets/static -> ./deploy/assets/static/%(name)s
+    """
+    build_dir = "/code/deploy/builds/%s" % name
+    static_dir = "/code/deploy/assets/static/%s" % name
+    link_dir = "%s/assets/static" % build_dir
+    docker_exec(
+        "mkdir -p %s" % static_dir,
+        "mkdir -p %s/assets" % build_dir,
+        "ln -sfvn /code/deploy/assets/media %s/assets/media" % build_dir,
+        "[ -L %(link_dir)s ] || ln -s %(static_dir)s %(link_dir)s" % {
+            'link_dir': link_dir,
+            'static_dir': static_dir,
+        })
+
+    for d in glob("%s/deploy/assets/static/*" % ROOT_DIR):
+        link_dir = "/code/deploy/assets/static/%s/%s" % (os.path.basename(d), name)
+        docker_exec("[ -L %(link_dir)s ] || ln -s %(static_dir)s %(link_dir)s" % {
+            'link_dir': link_dir,
+            'static_dir': static_dir,
+        })
+
+
+def copy_src(name):
+    build_dir = "/code/deploy/builds/%s" % name
+    docker_exec(
+        "git ls-files"
+        " | perl -pne 's/\"//g; s/e\\\\314\\\\201/é/g;'"  # Fix jétpack.xpi path
+        " | rsync -a --info=progress2 --files-from=- . %s" % build_dir)
+    docker_exec("cp /code/src/local_settings.py %s" % build_dir)
+    with build_venv(name):
+        docker_exec("cp -R /code/src/hadjango .")
+        docker_exec("cp /code/src/requirements/*.txt requirements")
+        docker_exec("cp /code/fabfile/build_port_convert.py hadjango")
+        docker_exec(
+            r"perl -pi -e "
+            r"'s/^ .+$//g;s/ \\//g;"
+            r"s/setuptools==23\.0\.0/setuptools==25\.1\.1/g;' "
+            "requirements/*.txt")
+
+
+def git_init(name):
+    """Create fake git repo so that jingo minify can cache bust images"""
+    if not os.path.exists("%s/deploy/builds/%s/.git" % (ROOT_DIR, name)):
+        with build_venv(name):
+            docker_exec(
+                'git init',
+                'cat /dev/urandom | head -c256 > .random',
+                'git add .random',
+                'git commit -m "Initial commit"')
+
+
+def pip_install(name):
     build_wheels()
     args = "-f /code/deploy/deps/wheelhouse --no-index --no-deps"
     with build_venv(name):
@@ -61,7 +155,7 @@ def install_python_dependencies(name):
             "pip install %s -r requirements/hadjango.txt" % args)
 
 
-def install_node_dependencies(name="_live"):
+def npm_install(name="_live"):
     if os.path.exists(os.path.join(ROOT_DIR, 'deploy', 'builds', name, 'node_modules')):
         return
     with build_venv(name):
@@ -88,23 +182,6 @@ def initialize_db():
             "python manage.py loaddata zadmin/users")
 
 
-@task
-def init():
-    """to initialize a docker image"""
-    build_wheels()
-    docker_exec("mkdir -p /code/deploy/assets/{static,media}")
-    create_build("a")
-    create_build("b")
-    docker_exec(
-        "ln -sfvn a /code/deploy/builds/_live",
-        "ln -sfvn b /code/deploy/builds/_stage")
-    initialize_db()
-    populate_data()
-    activate("a")
-    activate("b")
-    nginx_reload()
-
-
 def populate_data():
     """to populate a new database"""
     with build_venv("_live"):
@@ -123,79 +200,11 @@ def populate_data():
             "python manage.py cron category_totals")
 
 
-@task
-def djshell(name="_live"):
-    """to connect to a running addons-server django docker shell"""
-    with build_venv(name):
-        docker_exec("python manage.py shell")
-
-
-@task
-def shell(server='web'):
-    """to connect to a running addons-server docker shell"""
-    cwd = '/code' if server == 'web' else '/'
-    with cd(cwd):
-        docker_exec("bash", root=True, server=server)
-
-
-def update_assets(name):
+def build_assets(name):
     with build_venv(name):
         docker_exec(
             "python manage.py compress_assets",
             "python manage.py collectstatic --noinput")
-
-
-@task
-def create_build(name):
-    """Creates a new build of the Mozilla addons-server"""
-    build_dir = "/code/deploy/builds/%s" % name
-    static_dir = "/code/deploy/assets/static/%s" % name
-    link_dir = "%s/assets/static" % build_dir
-    docker_exec(
-        "mkdir -p %s" % static_dir,
-        "mkdir -p %s/assets" % build_dir,
-        "ln -sfvn /code/deploy/assets/media %s/assets/media" % build_dir,
-        "[ -L %(link_dir)s ] || ln -s %(static_dir)s %(link_dir)s" % {
-            'link_dir': link_dir,
-            'static_dir': static_dir,
-        })
-
-    for d in glob("%s/deploy/assets/static/*" % ROOT_DIR):
-        link_dir = "/code/deploy/assets/static/%s/%s" % (os.path.basename(d), name)
-        docker_exec("[ -L %(link_dir)s ] || ln -s %(static_dir)s %(link_dir)s" % {
-            'link_dir': link_dir,
-            'static_dir': static_dir,
-        })
-    docker_exec(
-        "git ls-files"
-        " | perl -pne 's/\"//g; s/e\\\\314\\\\201/é/g;'"  # Fix jétpack.xpi path
-        " | rsync -a --info=progress2 --files-from=- . %s" % build_dir)
-    docker_exec("cp /code/src/local_settings.py %s" % build_dir)
-    with build_venv(name):
-        docker_exec("cp -R /code/src/hadjango .")
-        docker_exec("cp /code/src/requirements/*.txt requirements")
-        docker_exec("cp /code/fabfile/build_port_convert.py hadjango")
-        docker_exec(
-            r"perl -pi -e "
-            r"'s/^ .+$//g;s/ \\//g;"
-            r"s/setuptools==23\.0\.0/setuptools==25\.1\.1/g;' "
-            "requirements/*.txt")
-        install_node_dependencies(name)
-        install_python_dependencies(name)
-        # Create fake git repo so that jingo minify can cache bust images
-        if not os.path.exists("%s/deploy/builds/%s/.git" % (ROOT_DIR, name)):
-            docker_exec(
-                'git init',
-                'cat /dev/urandom | head -c256 > .random',
-                'git add .random',
-                'git commit -m "Initial commit"')
-        update_assets(name)
-        port = build_to_port(name)
-        docker_exec(
-            'echo "upstream web { server web:%d; }" > live.conf' % port,
-            'echo "upstream webstage { server web:%d; }" > stage.conf' % port,
-            'date +%FT%T > .DEPLOY_TAG')
-        docker_exec("ln -svfn /code/conf/uwsgi/vassal.skel vassal.ini")
 
 
 @task
@@ -269,6 +278,7 @@ def ip():
 
 @task
 def find_free_build():
+    """Find what the next free build directory name is."""
     current_builds = set([os.path.basename(p) for p in glob("%s/deploy/builds/[a-z]*" % ROOT_DIR)])
     i = 0
     while True:
@@ -277,3 +287,18 @@ def find_free_build():
             print(build)
             return
         i += 1
+
+
+@task
+def djshell(name="_live"):
+    """Connect to a running addons-server django shell"""
+    with build_venv(name):
+        docker_exec("python manage.py shell")
+
+
+@task
+def shell(server='web'):
+    """Connect to a running addons-server docker shell"""
+    cwd = '/code' if server == 'web' else '/'
+    with cd(cwd):
+        docker_exec("bash", root=True, server=server)
