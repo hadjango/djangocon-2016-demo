@@ -21,9 +21,8 @@ ADD docker/mysql.repo /etc/yum.repos.d/mysql.repo
 
 RUN rpm --import /etc/pki/rpm-gpg/RPM-GPG-KEY-mysql \
     && rpm --import /etc/pki/rpm-gpg/RPM-GPG-KEY-hadjango \
-    && rpm --import /etc/pki/rpm-gpg/RPM-GPG-KEY-EPEL-7
-
-RUN yum update -y \
+    && rpm --import /etc/pki/rpm-gpg/RPM-GPG-KEY-EPEL-7 \
+    && yum update -y \
     && yum install -y \
         # Supervisor is being used to start and keep our services running
         supervisor \
@@ -59,21 +58,15 @@ RUN yum update -y \
         uwsgi-router-raw \
         uwsgi-router-uwsgi \
         uwsgi-stats-pusher-file \
-        uwsgi-stats-pusher-mongodb \
         uwsgi-stats-pusher-socket \
         uwsgi-plugin-cheaper-busyness \
-        sudo \
+        python-pip \
+        python-setuptools \
+        python-virtualenv \
     && yum clean all
 
-RUN yum install -y python-pip python-setuptools python-virtualenv
-
-RUN pip install wheel
-
-# Until https://github.com/shazow/urllib3/commit/959d47d926e1331ad571dbfc150c9a3acb7a1eb9 lands
-RUN pip install pyOpenSSL ndg-httpsclient pyasn1 certifi urllib3 psutil
-
-# ipython / ipdb for easier debugging, supervisor to run services
-RUN pip install ipython ipdb supervisor fabric
+RUN pip install wheel pyOpenSSL ndg-httpsclient pyasn1 certifi urllib3 psutil supervisor fabric \
+    && rm -rf /root/.cache
 
 COPY . /code
 WORKDIR /code
