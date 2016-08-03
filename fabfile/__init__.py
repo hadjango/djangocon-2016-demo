@@ -1,15 +1,14 @@
 # -*- coding: utf-8 -*-
 from __future__ import unicode_literals, print_function
 
+from distutils.spawn import find_executable
 from glob import glob
 import socket
 import time
 import os
 import re
 
-from fabric.api import task, local, env
-from fabric.context_managers import cd, quiet
-from fabric.utils import abort
+from fabric.api import abort, cd, env, hide, lcd, local, task, settings, quiet
 
 from .build_port_convert import build_to_port, base26_encode
 from .utils import docker_exec, build_venv, dealias_build
@@ -222,6 +221,7 @@ def swap_live(name=None):
 
 @task
 def stage(name):
+    """Stage the designated build"""
     live = dealias_build("_live")
     stage = dealias_build("_stage")
     if name == live:
@@ -238,18 +238,34 @@ def stage(name):
 
 @task
 def activate(name):
-    """Start a uWSGI instance for the given build"""
+    """Start uWSGI zerg instances for a build"""
     with build_venv(name):
-        # Wait for the emperor to poll again
+        if not os.path.islink("%s/deploy/builds/%s/vassal.ini" % (ROOT_DIR, name)):
+            docker_exec("ln -svfn /code/conf/uwsgi/vassal.skel vassal.ini")
+            time.sleep(3)
         docker_exec("ln -svfn /code/conf/uwsgi/zerg.skel zerg.ini")
+        # Wait for the emperor to poll again
         time.sleep(3)
 
 
 @task
 def deactivate(name):
-    """Stop the uWSGI instance for the given build"""
+    """Stop uWSGI zerg instance for a build"""
+    if not os.path.islink("%s/deploy/builds/%s/zerg.ini" % (ROOT_DIR, name)):
+        return
     with build_venv(name):
         docker_exec("rm -f zerg.ini")
+        time.sleep(3)
+
+
+@task
+def stop(name):
+    """Stop all uwsgi vassals and zergs for a build"""
+    deactivate(name)
+    if not os.path.islink("%s/deploy/builds/%s/vassal.ini" % (ROOT_DIR, name)):
+        return
+    with build_venv(name):
+        docker_exec("rm -f vassal.ini")
         time.sleep(3)
 
 
@@ -305,6 +321,17 @@ def find_free_build():
 
 
 @task
+def rm(name):
+    """Delete a build"""
+    live_name = dealias_build("_live")
+    stage_name = dealias_build("_stage")
+    if name in (live_name, stage_name):
+        abort("Cannot delete the current live or stage build")
+    stop(name)
+    docker_exec("rm -rf /code/deploy/builds/%s" % name)
+
+
+@task
 def djshell(name="_live"):
     """Connect to a running addons-server django shell"""
     with build_venv(name):
@@ -317,3 +344,42 @@ def shell(server='web'):
     cwd = '/code' if server == 'web' else '/'
     with cd(cwd):
         docker_exec("bash", root=True, server=server)
+
+
+@task
+def make_incremental_build(name, basis="live"):
+    """
+    Archive a build, hard-linking unchanged files from the "basis" build (default live)
+
+    This can significantly reduce the disk space used by multiple builds.
+
+    On mac, requires ``brew install coreutils``
+    """
+    cp_bin = find_executable('gcp')
+    if find_executable('gcp'):
+        cp_bin = "gcp"
+    else:
+        cp_bin = "cp"
+
+    live_name = dealias_build("_live")
+    stage_name = dealias_build("_stage")
+    if name in (live_name, stage_name):
+        abort("Cannot turn the live or stage build into an incremental build")
+
+    basis = dealias_build(basis)
+
+    stop(name)
+
+    with lcd("%s/deploy/builds" % ROOT_DIR):
+        local("mv %(name)s %(name)s~" % {'name': name})
+        with settings(hide("stderr"), warn_only=True):
+            cp_ret = local("%(cp_bin)s -al %(basis)s %(name)s" % {
+                'basis': basis,
+                'name': name,
+                'cp_bin': cp_bin,
+            })
+        if not cp_ret.succeeded:
+            local("mv %(name)s~ %(name)s" % {'name': name})
+            abort("Local cp bin does not support -l flag (on mac: brew install coreutils)")
+        local("rsync -acH --delete %(name)s~/ %(name)s" % {'name': name})
+        local("rm -rf %(name)s~" % {'name': name})

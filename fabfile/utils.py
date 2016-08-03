@@ -138,7 +138,9 @@ def _prefix_env_vars(command, local=False):
 
 
 def dealias_build(name):
-    path = "/code/deploy/builds/%s" % name
+    if name in ("live", "stage"):
+        name = "_%s" % name
+    path = "%s/deploy/builds/%s" % (ROOT_DIR, name)
     with quiet():
         return os.path.basename(
             docker_exec("cd %s && pwd -P" % path, capture=True))
